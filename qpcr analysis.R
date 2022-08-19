@@ -1,8 +1,7 @@
 
-
 #https://liz-is.github.io/qpcr-analysis-with-r/aio.html - for help
 BiocManager::install("pcr", "readxl","devtools")
-BiocManager::install("readexcel", "qpcR")
+BiocManager::install("readexcel", "ggplot2", "ggthemes", "qpcR", "tidyr")
 library(pcr)
 library(readxl)
 library(readexcel)
@@ -18,12 +17,6 @@ library(tidyqpcr)
 #either change path file or better yet, add data file to extdata folder (ie external data storage for this particular package)
 #locate and read raw data
 
-#qpcr2_test15 <- read_excel(
-#  system.file("extdata", "12522 AD quant -Rtudio.xls",
-#              package = "tidyqpcr"), sheet = "Results", #opens doc in terms of the package being used?
-#  skip=6, range = "A1:O104", col_names = TRUE # could also use 'skip=6, col_names = TRUE' which skips first 6 rows of unnecessary info and uses header as column names
-#)
-
 
 #ensure extdata folder contains file: /Library/Frameworks/R.framework/Versions/4.2/Resources/library/tidyqpcr/extdata
 setwd("/Library/Frameworks/R.framework/Versions/4.2/Resources/library/tidyqpcr/extdata")
@@ -34,7 +27,7 @@ qpcr_test15 <- read_excel(
 )
 View(qpcr_test15)
 
-                #if we didn't include primer targets; we would create a new dataframe to explain our primers and targets and combine with the qPCR data
+                #if plate layout didn't include primer targets; we would create a new dataframe to explain our primers and targets and combine with the qPCR data
                 #primer_key <- data.frame(row = c("A", "B", "C", "D", "E", "F", "G", "H"),
                        #primers = c(rep("7280;c84", 2), rep("cas9-267", 2), rep("dsx_T1", 2), rep("dsx_T1", 2)))
 
@@ -57,7 +50,7 @@ names(tidy_qpcr)[names(tidy_qpcr) == "Target Name"] <- "target_id" #alters colum
   names(tidy_qpcr)[names(tidy_qpcr) == "Sample Name"] <- "sample_id" #alters column name from 'Sample Name' to 'sample_id'
   names(tidy_qpcr)[names(tidy_qpcr) == "Cт"] <- "Ct"
   names(tidy_qpcr)[names(tidy_qpcr) == "Cт SD"] <- "Ct_sd"
-##note this works: rename(new_name = old_name) renames individual variables; rename_with() = renames columns
+##note this also works: rename(new_name = old_name) renames individual variables; rename_with() = renames columns
 View(tidy_qpcr)
   
 
@@ -66,12 +59,12 @@ View(tidy_qpcr)
 #works despite error message
 #lower rows are removed when making plate
 #ensure biological replicate group is added to cvs/ qpcr set up otherwise bar plot colour doesnt distinguish between replicates - can use separate function if tidy; see hidden code below
-plate_qpcr <- 
-  create_blank_plate_96well() %>%
-  inner_join(tidy_qpcr) %>% #inner_join joins data frames together
-    mutate(prep_type = Task) #adds a prep_type column (i.e. Task column from original data) for info on cDNA prep; can be +RT; -RT; NTC; 'tidy_qpcr$prep_type <- prep_type' also works
-display_plate_qpcr(plate_qpcr) #displays plate layout
-View(plate_qpcr)
+# plate_qpcr <- 
+#  create_blank_plate_96well() %>%
+#  inner_join(tidy_qpcr) %>% #inner_join joins data frames together
+#    mutate(prep_type = Task) #adds a prep_type column (i.e. Task column from original data) for info on cDNA prep; can be +RT; -RT; NTC; 'tidy_qpcr$prep_type <- prep_type' also works
+# display_plate_qpcr(plate_qpcr) #displays plate layout
+# View(plate_qpcr)
 
 
 
@@ -93,13 +86,10 @@ plate_qpcr$Ct_sd <- as.numeric(plate_qpcr$Ct_sd)
 
 ggplot(data = subset(plate_qpcr, target_id != "h20 only" & Task != "STANDARD"), aes( #filters rows to show everything bar water controls etc
         x = sample_id, y = Ct, fill = target_id, colour = target_id, shape = sample_id, label = sample_id, 
-        ymin=Ct, ymax=Ct + Ct_sd)) +  #removing ymin=Ct-Ct_sd stops error bar covering text
-#add all aes() features in first line
+        ymin=Ct, ymax=Ct + Ct_sd)) + 
 #changed filter to subset(); #uses normalised mean delta delta values and filter water control
  #geom_point(position = position_dodge(width = 1)) + 
     geom_bar(stat = "identity", position = position_dodge(width = 1), colour = "black") + ##colour is for the bar's outline
-    #'stat = "identity"' in geom_bar skips aggregating rows and we provide y-values; geom_col doesn't aggregate by default;
-    #'position = position_dodge' controls width between bars; shape separates overlapping bars/ values and gives each sample an identity
       geom_errorbar(position = position_dodge(width = 1), width=.2, colour = "black") + #adds error bars; remove '-sd' to remove lower error bar
       geom_text(position = position_dodge(width = 1), hjust = 1.5, colour = "black", size = 1.5, angle=90) +
       labs(y="Ct", title = "All reps, Unnormalised") + #labs() modify axis, legend, and plot labels
@@ -219,45 +209,4 @@ fold_change_plot
 
 
 
-
-
-#-------------
-#try something else.......!!
-
-
-
-
-
-
-
-
-Quantity = qpcr_test15.1_tidy$Quantity
-res <- pcr_assess(qpcr_test15.1_tidy,
-            amount = Quantity,
-            reference_gene = 'target_id',
-            method = 'efficiency')
-res
-
-
-BiocManager::install("ddCt")
-
-
-
-
-
-
-
-## add grouping variable by generating replicates of the values in x
-group_var <- rep(c('c84 1', 'c84 2', 'QFS1 1', 'QFS1 2', 'WT 1'), each = 4) #there are 4 samples of c84 (two biological replicates for targets 7280; cas9-267), 4 samples of qfs1 two biological replicates for targets dsx/ dsxT1)
-
-# calculate all values and errors in one step
-#here we locate Ct values of the four target genes 7280;c84, cas9-267, dsx & dsxT1
-#this obtains the expression of these targets normalised against the hkg-control relative to WT
-#remember orginal data doesn;t contain cas9-267 as a target for c84
-res <- pcr_analyze(qpcr_test15,
-                   group_var = group_var,
-                   reference_gene = 'rg1262/63 hkg control',
-                   reference_group = 'WT1')
-
-res
 

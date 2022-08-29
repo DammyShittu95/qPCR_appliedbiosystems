@@ -1,5 +1,4 @@
 
-#https://liz-is.github.io/qpcr-analysis-with-r/aio.html - for help
 BiocManager::install("pcr", "readxl","devtools")
 BiocManager::install("readexcel", "ggplot2", "ggthemes", "qpcR", "tidyr")
 library(pcr)
@@ -20,12 +19,12 @@ library(tidyqpcr)
 
 #ensure extdata folder contains file: /Library/Frameworks/R.framework/Versions/4.2/Resources/library/tidyqpcr/extdata
 setwd("/Library/Frameworks/R.framework/Versions/4.2/Resources/library/tidyqpcr/extdata")
-qpcr_test15 <- read_excel(
-  system.file("extdata", "12522 AD quant -Rtudio.xls",
+qpcr_name_of_file <- read_excel(
+  system.file("extdata", "name_of_file.xls",
               package = "tidyqpcr"), sheet = "Results", #opens doc in terms of the package being used?
   skip=6, col_names = TRUE #skips first 6 rows of unnecessary info and uses header as column names; #argument: 'range= "A1:O104"' is supposed to exclude specific rows and columns in favour for just the data
 )
-View(qpcr_test15)
+View(qpcr_name_of_file)
 
                 #if plate layout didn't include primer targets; we would create a new dataframe to explain our primers and targets and combine with the qPCR data
                 #primer_key <- data.frame(row = c("A", "B", "C", "D", "E", "F", "G", "H"),
@@ -37,7 +36,7 @@ View(qpcr_test15)
 library(rlang)
 library(qpcR)
 library(tidyr)
-tidy_qpcr <- separate(qpcr_test15, Well, into = c("well_row", "well_col"), 
+tidy_qpcr <- separate(qpcr_name_of_file, Well, into = c("well_row", "well_col"), 
                              sep = 1) #separates by 1 position
 tidy_qpcr
 View(tidy_qpcr)
@@ -107,7 +106,7 @@ ggplot(data = subset(plate_qpcr, target_id != "h20 only" & Task != "STANDARD"), 
 
 
 #define hkg ie ref. target gene before rebuilding function
-ref_target_ids <- plate_qpcr[plate_qpcr$target_id %in% "rg1262/63 hkg control",] #this subsets the column 'target_id' according to the hkg/ target gene
+ref_target_ids <- plate_qpcr[plate_qpcr$target_id %in% "hkg control",] #this subsets the column 'target_id' according to the hkg/ target gene
 
 calculate_deltact_bysampleid <- function (plate_qpcr, ref_target_ids, norm_function = mean) {
   plate_qpcr %>% dplyr::group_by(.data$sample_id) %>% dplyr::do(calculate_normvalue(.data,
@@ -118,7 +117,7 @@ calculate_deltact_bysampleid <- function (plate_qpcr, ref_target_ids, norm_funct
 }
 
 #then create normalised (delta Ct) dataframe
-plate_norm <- calculate_deltact_bysampleid(plate_qpcr,ref_target_ids = "rg1262/63 hkg control", norm_function = mean) #calculate the mean (own code changed it from median) Ct of reference gene separately for each sample; then subtract it from all other sample's Ct
+plate_norm <- calculate_deltact_bysampleid(plate_qpcr,ref_target_ids = "hkg control", norm_function = mean) #calculate the mean (own code changed it from median) Ct of reference gene separately for each sample; then subtract it from all other sample's Ct
 View(plate_norm) #note: samples like -RT are seen as NaN ie impossible values
 
 
@@ -183,7 +182,7 @@ View(calculate_deltadeltact_bytargetid(plate_norm_by_mean, ref_sample_ids = "WT 
 #----
 
 #now plot data!
-ΔΔCt_plot <- ggplot(data = subset(plate_delta_delta_mean, target_id != "h20 only" & target_id != "rg1262/63 hkg control" & delta_delta_Ct != "NaN" #remove unnecesary samples and controls
+ΔΔCt_plot <- ggplot(data = subset(plate_delta_delta_mean, target_id != "h20 only" & target_id != "hkg control" & delta_delta_Ct != "NaN" #remove unnecesary samples and controls
             ), aes(x = sample_id, y = delta_delta_Ct, fill = target_id, shape = sample_id, label = sample_id)) +
     geom_bar(stat = "identity", position = position_dodge(width = 1), colour = "black") +
   geom_point(position = position_dodge(width = 1)) +
@@ -193,7 +192,7 @@ View(calculate_deltadeltact_bytargetid(plate_norm_by_mean, ref_sample_ids = "WT 
   theme(axis.text.x = element_text(angle = 45, vjust = 0.5))
 ΔΔCt_plot
 
-fold_change_plot <- ggplot(data = subset(plate_delta_delta_mean, target_id != "h20 only" & target_id != "rg1262/63 hkg control" & delta_delta_Ct != "NaN" #remove unnecesary samples and controls
+fold_change_plot <- ggplot(data = subset(plate_delta_delta_mean, target_id != "h20 only" & target_id != "hkg control" & delta_delta_Ct != "NaN" #remove unnecesary samples and controls
     ), aes(x = sample_id, y = fold_change, fill = target_id, shape = sample_id, label = sample_id)) +
   geom_bar(stat = "identity", position = position_dodge(width = 1), colour = "black") + 
   geom_point(position = position_dodge(width = 1)) +
